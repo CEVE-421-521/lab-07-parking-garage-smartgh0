@@ -1,6 +1,6 @@
 ---
 title: "Lab 7: Parking Garage Case Study"
-author: "Your Name"
+author: "Solomon Nyamekye"
 jupyter: julia-1.10
 date: 2024-03-08
 categories: [Lab]
@@ -10,33 +10,198 @@ format:
 
     # YOU DO NOT NEED BOTH PDF AND DOCX.
     # COMMENT OR DELETE THE ONE YOU DON'T WANT TO USE.
-    pdf:
-        documentclass: article
-        fontsize: 11pt
-        geometry:
-            - margin=1in  
-        number-sections: true
-        code-line-numbers: true
-    #docx: 
-    #    toc: true
-    #    fig-format: png
-    #    number-sections: true
-    #`    code-line-numbers: true
+    #pdf:
+        #documentclass: article
+        #fontsize: 11pt
+        #geometry:
+            #- margin=1in  
+        #number-sections: true
+        #code-line-numbers: true
+    docx: 
+         toc: true
+         fig-format: png
+         number-sections: true
+         code-line-numbers: true
 
 date-format: "ddd., MMM. D"
 references: references.bib
 ---
-
-
 ```{julia}
 using Revise
 using ParkingGarage
+using Plots
+using Distributions
+using Random
+Plots.default(; margin=5Plots.mm);
+Random.seed!(2024);
 ```
-
-and also regular packages
+## Static Policy 
 
 ```{julia}
-using Plots
-Plots.default(; margin=5Plots.mm)
-```
+n_levels = 2:12
+s_sows = 1 
+s_sows = [ParkingGarageSOW(demand_growth_rate = 80.0, n_years=20, discount_rate=0.12) for sows in s_sows]
+npvs = [simulate(sow, StaticPolicy(i)) for sow in s_sows for i in n_levels]
+#finding average npv
+avg_npvs = [mean(npv) for npv in npvs]
+#plotting
+plot(n_levels, avg_npvs; marker =:circle, xticks=n_levels, label="Single SOW", color=:black,)  
 
+n_years = 20
+discount_rate = 0.12
+n_levels = 2:12
+n_sows = 100_00000
+
+#Demand Growth Rate sampling -Normal distributions
+demand_growth_rate=rand(Normal(80.0, 10.0))
+#drawing from n State of the world
+sows = [ParkingGarageSOW(demand_growth_rate, n_years, discount_rate) for sows in n_sows]
+
+#calculating npvs for ensemble of SOW and level in Static Policy scenario
+npv = [simulate(sow, StaticPolicy(i)) for sow in sows for i in n_levels]
+
+#finding average npv
+avg_npv = [mean(npv) for npv in npv]
+println(avg_npvs)
+
+#plotting 
+plot!(n_levels, avg_npv;
+     ylabel="Average NPV Profits [Million USD]",
+     xlabel="Number of levels",
+     #legend=false,
+     title="Static Policy, $(n_years) Year Horizon, $(discount_rate) Discount",
+     size=(800, 400),
+     marker=:circle,
+     xticks=n_levels,
+     yformatter=:plain,
+     label ="ensemble of SOW",
+     color=:red,
+     linestyle=:dash,
+     )
+
+    hline!([0]; label="Zero NPV", color=:orange,)
+```
+# Adapitive policy 
+
+```{julia}
+n_levels = 2:12
+s_sows = 1 
+s_sows = [ParkingGarageSOW(demand_growth_rate = 80.0, n_years=20, discount_rate=0.12) for sows in s_sows]
+npvs = [simulate(sow, AdaptivePolicy(i)) for sow in s_sows for i in n_levels]
+#finding average npv
+avg_npvs = [mean(npv) for npv in npvs]
+
+#ploting for single deterministic sow
+plot(n_levels, avg_npvs; marker =:circle, xticks=n_levels, label="Single SOW", color=:black,)  
+
+n_years = 20
+discount_rate = 0.12
+n_levels = 2:12
+n_sows = 100_00000 # sow samples 
+
+#Demand Growth Rate sampling - Normal distributions
+demand_growth_rate=rand(Normal(80.0, 10.0))
+#drawing from n State of the world
+sows = [ParkingGarageSOW(demand_growth_rate, n_years, discount_rate) for sows in n_sows]
+#calculating npvs for ensemble of SOW and level in Static Policy scenario
+npv = [simulate(sow, AdaptivePolicy(i)) for sow in sows for i in n_levels]
+#finding average npv
+avg_npv = [mean(npv) for npv in npv]
+#plotting 
+plot!(n_levels, avg_npv;
+     ylabel="Average NPV Profits [Million USD]",
+     xlabel="Number of levels",
+     #legend=false,
+     title="Adaptive Policy, $(n_years) Year Horizon, $(discount_rate) Discount",
+     size=(800, 400),
+     marker=:circle,
+     xticks=n_levels,
+     yformatter=:plain,
+     label ="ensemble of SOWS",
+     color=:red,
+     linestyle=:dash,
+     )
+
+    hline!([0]; label="Zero NPV", color=:orange,)
+```
+# Comparing Static and Adaptive for single SOW
+
+```{julia}
+n_levels = 2:12
+s_sows = 1 
+s_sows = [ParkingGarageSOW(demand_growth_rate = 80.0, n_years=20, discount_rate=0.12) for sows in s_sows]
+npv_static = [simulate(sow, StaticPolicy(i)) for sow in s_sows for i in n_levels]
+#finding average npv
+avg_npv_static = [mean(npv) for npv in npv_static]
+#ploting for single deterministic sow
+plot(n_levels, avg_npv_static; marker =:circle, xticks=n_levels, label=" Static policy", color=:black,)  
+
+n_years = 20
+discount_rate = 0.12
+n_levels = 2:12
+
+#Demand Growth Rate sampling -Normal distributions
+#demand_growth_rate=rand(Normal(80.0, 10.0))
+#drawing from n State of the world
+sows = [ParkingGarageSOW(demand_growth_rate =80.0, n_years=20, discount_rate=0.12) for sows in s_sows]
+#calculating npvs for ensemble of SOW and level in Static Policy scenario
+npv_adaptive = [simulate(sow, AdaptivePolicy(i)) for sow in sows for i in n_levels]
+#finding average npv
+avg_npv_adaptive = [mean(npv) for npv in npv_adaptive]
+
+#plotting 
+plot!(n_levels, avg_npv_adaptive;
+     ylabel="Average NPV Profits [Million USD]",
+     xlabel="Number of levels",
+     #legend=false,
+     title="Comparing Static and Adaptive for single SOW, $(n_years) Year Horizon, $(discount_rate) Discount",
+     size=(800, 400),
+     marker=:circle,
+     xticks=n_levels,
+     yformatter=:plain,
+     label ="Adaptive policy",
+     color=:red,
+     linestyle=:dash,
+     )
+    hline!([0]; label="Zero NPV", color=:orange,)
+```
+## Comparing Static and Adaptive for ensemble of SOW
+```{julia}
+n_levels = 2:12
+n_years = 20
+discount_rate = 0.12
+n_sows = 100_00000
+#Demand Growth Rate sampling -Normal distributions
+demand_growth_rate = rand(Normal(80.0, 10.0))
+
+#
+sows = [ParkingGarageSOW(demand_growth_rate, n_years, discount_rate) for sows in n_sows]
+npv_static = [simulate(sow, StaticPolicy(i)) for sow in s_sows for i in n_levels]
+#finding average npv
+avg_npv_static = [mean(npv) for npv in npv_static]
+#ploting for single deterministic sow
+plot(n_levels, avg_npv_static; marker=:circle, xticks=n_levels, label="Static policy", color=:black,)
+
+#drawing from n State of the world
+sows = [ParkingGarageSOW(demand_growth_rate, n_years, discount_rate) for sows in n_sows]
+#calculating npvs for ensemble of SOW and level in Static Policy scenario
+npv_adaptive = [simulate(sow, AdaptivePolicy(i)) for sow in sows for i in n_levels]
+#finding average npv
+avg_npv_adaptive = [mean(npv) for npv in npv_adaptive]
+
+#plotting 
+plot!(n_levels, avg_npv_adaptive;
+    ylabel="Average NPV Profits [Million USD]",
+    xlabel="Number of levels",
+    #legend=false,
+    title="Comparing Static and Adaptive for ensemble of SOW, $(n_years) Year Horizon, $(discount_rate) Discount",
+    size=(800, 400),
+    marker=:circle,
+    xticks=n_levels,
+    yformatter=:plain,
+    label="Adaptive policy",
+    color=:red,
+    linestyle=:dash,
+)
+hline!([0]; label="Zero NPV", color=:orange,)
+```

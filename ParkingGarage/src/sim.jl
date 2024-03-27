@@ -1,10 +1,3 @@
-"""
-Demand on opening day is for 750 spaces, and rises linearly at the rate of `demand_growth_rate` spaces/ year
-"""
-function calculate_demand(t, demand_growth_rate::AbstractFloat)
-    return 750 + demand_growth_rate * (t - 1)
-end
-
 """The capacity of the parking garage is 200 spaces per level"""
 calculate_capacity(x::ParkingGarageState) = 200 * x.n_levels
 
@@ -31,6 +24,7 @@ If we are following the static (fixed) policy, then the rule is simple. We add `
 function get_action(x::ParkingGarageState, policy::StaticPolicy)
     if x.year == 1
         return ParkingGarageAction(policy.n_levels)
+        println(policy.n_levels)
     else
         return ParkingGarageAction(0)
     end
@@ -41,8 +35,24 @@ If we are following the adaptive policy, then the rule is slightly more complica
 We add `n_levels` in the first year. Then, every future year we compare the capacity and demand. If the demand is greater than the capacity, we add a level.
 """
 function get_action(x::ParkingGarageState, policy::AdaptivePolicy)
-    # THIS IS THE FUNCTION YOU NEED TO REPLACE!
-    throw("You need to implement the adaptive policy yourself")
+
+    if x.year == 1
+        # For the first year, construct according to initial policy
+        return ParkingGarageAction(policy.n_levels_init)
+    else
+        # Calculate demand and capacity for the current year
+        #demand = calculate_demand(x.year, policy.demand_growth_rate)
+        #capacity = calculate_capacity(x)
+        # Check if demand exceeds capacity
+        if x.demand > calculate_capacity(x)
+            # Increment the number of levels by one
+            return ParkingGarageAction(1) 
+        else
+            # Maintain the same number of levels
+            return ParkingGarageAction(0)
+        end
+    end
+    #throw("You need to implement this yourself!")
 end
 
 """
@@ -51,6 +61,9 @@ Run the simulation for a single year
 function run_timestep(
     x::ParkingGarageState, s::ParkingGarageSOW, policy::T
 ) where {T<:AbstractPolicy}
+
+    # calculate the demand for this year
+    x.demand = calculate_demand(x.year, s.demand_growth_rate)
 
     # the very first step is to decide on the action
     a = get_action(x, policy)
@@ -65,8 +78,7 @@ function run_timestep(
 
     # revenue -- you can only sell parking spaces that you have AND that are wanted
     capacity = calculate_capacity(x)
-    demand = calculate_demand(x.year, s.demand_growth_rate)
-    revenue = 11_000 * min(capacity, demand)
+    revenue = 11_000 * min(capacity, x.demand)
 
     # lease costs are fixed
     lease_cost = 3_600_000
